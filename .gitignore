@@ -1,0 +1,9 @@
+.deepeval
+.python-version
+*.gguf
+data/
+__pycache__/
+.env
+.envrc
+*.egg-info/*
+json_data/
