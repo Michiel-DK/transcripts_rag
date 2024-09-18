@@ -4,8 +4,12 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_groq import ChatGroq
 from langchain_core.documents import Document
 from tqdm import tqdm
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import OllamaEmbeddings
 
-from transcripts_rag.ingestion import dataloader
+
+
+from transcripts_rag.ingestion import dataloader, doc_split
 
 
 # Data model
@@ -90,7 +94,7 @@ class PropositionGenerator():
     def get_propositions(self, docs: list):
         
         self.propositions = []
-        
+                
         for i in tqdm(range(len(docs))):
             
             doc = docs[i]
@@ -186,7 +190,7 @@ class PropositionGrader():
         self.evaluated_propositions = []
         
         for idx, proposition in tqdm(enumerate(propositions)):
-            scores = self.evaluate_proposition(proposition.page_content, doc_splits[proposition.metadata['chunk_id'] - 1].page_content)
+            scores = self.evaluate_propositions(proposition.page_content, doc_splits[proposition.metadata['chunk_id'] - 1].page_content)
             if self.passes_quality_check(scores):
                 # Proposition passes quality check, keep it
                 self.evaluated_propositions.append(proposition)
@@ -198,10 +202,11 @@ class PropositionGrader():
 
 if __name__ == '__main__':
     
-    doc = dataloader('../json_data/2024_1_ADYEY.txt')
+    doc = dataloader('data/')
+    doc = doc_split(doc)
     
     #instantiate PropositionGenerator
-    prop_generator = PropositionGenerator()
+    prop_generator = PropositionGenerator(model='gemma2-9b-it')
     
     #Generate propositions
     prop_generator.generate_propositions()
@@ -211,11 +216,16 @@ if __name__ == '__main__':
     
     print(prop_generator.propositions)
     
-    prop_evaluator = PropositionGrader()
+    prop_evaluator = PropositionGrader(model='gemma2-9b-it')
     prop_evaluator.grade_propositions()
     
     prop_evaluator.generate_evaluations(propositions=prop_generator.propositions, doc_splits=doc)
     
-    import ipdb;ipdb.set_trace()
+    embedding_model = OllamaEmbeddings(model='nomic-embed-text:v1.5', show_progress=True)
+
+    vectorstore_propositions = FAISS.from_documents(prop_evaluator.evaluated_propositions, embedding_model)
+
+    vectorstore_propositions.save_local("faiss_transcript_index")
+    
     
     

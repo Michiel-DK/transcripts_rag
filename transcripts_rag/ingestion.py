@@ -1,6 +1,8 @@
 from typing import List
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.schema import BaseNode
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 
 import json
 import pandas as pd
@@ -8,8 +10,20 @@ import pandas as pd
 
 def dataloader(path: str = '../json_data/', extension : str = '.txt') -> List[BaseNode]:
     node_parser = SimpleDirectoryReader(input_dir=path, required_exts=[extension])
-    documents = node_parser.load_data()
+    documents = node_parser.load_data()[:5]
     return documents
+
+def doc_split(documents):
+    
+    docs_list = [Document(page_content=document.text, metadata=document.metadata) for document in documents]
+    
+    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        chunk_size=1000, chunk_overlap=50)
+
+    doc_splits = text_splitter.split_documents(docs_list)
+    
+    return doc_splits
+
 
 
 def json_to_txt(json_path: str = 'json_data/transcripts_2024.json', output_path: str = 'data/', stock_ls : list = []) -> None:
