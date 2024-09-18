@@ -10,10 +10,12 @@ import pandas as pd
 
 def dataloader(path: str = '../json_data/', extension : str = '.txt') -> List[BaseNode]:
     node_parser = SimpleDirectoryReader(input_dir=path, required_exts=[extension])
-    documents = node_parser.load_data()[:5]
+    documents = node_parser.load_data()[0]
     return documents
 
 def doc_split(documents):
+    
+    documents = [documents]
     
     docs_list = [Document(page_content=document.text, metadata=document.metadata) for document in documents]
     

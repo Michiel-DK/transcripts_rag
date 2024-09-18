@@ -7,3 +7,4 @@ __pycache__/
 .envrc
 *.egg-info/*
 json_data/
+*_index/
