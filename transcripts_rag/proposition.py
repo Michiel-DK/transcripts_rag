@@ -2,6 +2,11 @@ from typing import List
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_groq import ChatGroq
+from langchain_core.documents import Document
+from tqdm import tqdm
+
+from transcripts_rag.ingestion import dataloader
+
 
 # Data model
 class GeneratePropositions(BaseModel):
@@ -38,6 +43,8 @@ class PropositionGenerator():
         
         self.llm = ChatGroq(model=model, temperature=temperature)
         self.structured_llm = self.llm.with_structured_output(GeneratePropositions)
+        self.proposition_generator = None
+        self.propositions = []
 
     def generate_propositions(self):
     # Few shot prompting --- We can add more examples to make it good
@@ -78,10 +85,37 @@ class PropositionGenerator():
             ]
         )
 
-        proposition_generator = prompt | self.structured_llm
+        self.proposition_generator = prompt | self.structured_llm
         
-        return proposition_generator
-    
+    def get_propositions(self, docs: list):
+        
+        self.propositions = []
+        
+        for i in tqdm(range(len(docs))):
+            
+            doc = docs[i]
+            file_name = doc.metadata['file_name']
+            file_path = doc.metadata['file_path']
+            creation_date = doc.metadata['creation_date']
+            last_modified_date = doc.metadata['last_modified_date']
+            split_ls = doc.metadata['file_name'].rstrip('.txt').split("_")
+            
+            
+            response = self.proposition_generator.invoke({"document": doc.page_content}) # Creating proposition
+            for proposition in response.propositions:
+                self.propositions.append(Document(proposition, 
+                                                  metadata={ 'file_path': file_path,
+                    'file_name': file_name,
+                    'file_type': 'text/plain',
+                    'file_size': 50540,
+                    'creation_date': creation_date,
+                    'last_modified_date': last_modified_date, "chunk_id": i+1,
+                    'ticker': split_ls[-1],
+                    'year': int(split_ls[0]),
+                    'quarter': int(split_ls[1])
+                    }))
+                
+            
     
 class PropositionGrader():
     
@@ -89,6 +123,9 @@ class PropositionGrader():
         
         self.llm = ChatGroq(model=model, temperature=temperature)
         self.structured_llm = self.llm.with_structured_output(GradePropositions)
+        self.proposition_evaluator = None
+        self.treshold_dict = {"accuracy": 7, "clarity": 7, "completeness": 7, "conciseness": 7}
+        self.evaluated_propositions = []
 
     def grade_propositions(self):
         
@@ -128,6 +165,57 @@ class PropositionGrader():
                 ]
             )
 
-        proposition_evaluator = prompt | self.structured_llm
+        self.proposition_evaluator = prompt | self.structured_llm
         
-        return proposition_evaluator
+    def evaluate_propositions(self, proposition: list, original_text: str):
+        
+        response = self. proposition_evaluator.invoke({"proposition": proposition, "original_text": original_text})
+    
+        # Parse the response to extract scores
+        scores = {"accuracy": response.accuracy, "clarity": response.clarity, "completeness": response.completeness, "conciseness": response.conciseness}  # Implement function to extract scores from the LLM response
+        return scores
+    
+    def passes_quality_check(self, scores):
+        for category, score in scores.items():
+            if score < self.treshold_dict[category]:
+                return False
+        return True
+    
+    def generate_evaluations(self, propositions: List[Document], doc_splits: List[Document]):
+        
+        self.evaluated_propositions = []
+        
+        for idx, proposition in tqdm(enumerate(propositions)):
+            scores = self.evaluate_proposition(proposition.page_content, doc_splits[proposition.metadata['chunk_id'] - 1].page_content)
+            if self.passes_quality_check(scores):
+                # Proposition passes quality check, keep it
+                self.evaluated_propositions.append(proposition)
+                print(f"Success: {idx+1}) Propostion: {proposition.page_content} \n Scores: {scores}")
+            else:
+                # Proposition fails, discard or flag for further review
+                print(f"Fail: {idx+1}) Propostion: {proposition.page_content} \n Scores: {scores}")
+                
+
+if __name__ == '__main__':
+    
+    doc = dataloader('../json_data/2024_1_ADYEY.txt')
+    
+    #instantiate PropositionGenerator
+    prop_generator = PropositionGenerator()
+    
+    #Generate propositions
+    prop_generator.generate_propositions()
+    
+    #get_propositions
+    prop_generator.get_propositions(docs=doc)
+    
+    print(prop_generator.propositions)
+    
+    prop_evaluator = PropositionGrader()
+    prop_evaluator.grade_propositions()
+    
+    prop_evaluator.generate_evaluations(propositions=prop_generator.propositions, doc_splits=doc)
+    
+    import ipdb;ipdb.set_trace()
+    
+    
