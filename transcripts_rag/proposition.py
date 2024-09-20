@@ -204,41 +204,46 @@ if __name__ == '__main__':
     
     try:
     
-        doc = dataloader('data/')
-        doc = doc_split(doc)
+        docs = dataloader('data/')
         
-        #instantiate PropositionGenerator
-        prop_generator = PropositionGenerator(model='gemma2-9b-it')
-        
-        #Generate propositions
-        prop_generator.generate_propositions()
-        
-        #get_propositions
-        prop_generator.get_propositions(docs=doc)
+                
+        for doc in docs:
             
-        prop_evaluator = PropositionGrader(model='gemma2-9b-it')
-        prop_evaluator.grade_propositions()
-        
-        prop_evaluator.generate_evaluations(propositions=prop_generator.propositions, doc_splits=doc)
-        
-        embedding_model = OllamaEmbeddings(model='nomic-embed-text:v1.5', show_progress=True)
-        
-
-        vectorstore_propositions = FAISS.from_documents(prop_evaluator.evaluated_propositions, embedding_model)
-        
-        if os.path.exists("faiss_transcript_index"):
-            vectorstore_propositions.save_local("faiss_transcript_index")
-        
-        else:
-            old_vectorstore_propositions = FAISS.load_local(
-                "faiss_transcript_index", embedding_model, allow_dangerous_deserialization=True
-            )
+            doc = doc_split(doc)
+                        
+            #instantiate PropositionGenerator
+            prop_generator = PropositionGenerator(model='gemma2-9b-it')
             
-            old_vectorstore_propositions.merge_from(vectorstore_propositions)
+            #Generate propositions
+            prop_generator.generate_propositions()
             
-            vectorstore_propositions.save_local("faiss_transcript_index")
+            #get_propositions
+            prop_generator.get_propositions(docs=doc)
+                
+            prop_evaluator = PropositionGrader(model='gemma2-9b-it')
+            prop_evaluator.grade_propositions()
+            
+            prop_evaluator.generate_evaluations(propositions=prop_generator.propositions, doc_splits=doc)
             
             import ipdb;ipdb.set_trace()
+            
+            # embedding_model = OllamaEmbeddings(model='nomic-embed-text:v1.5', show_progress=True)
+            
+
+            # vectorstore_propositions = FAISS.from_documents(prop_evaluator.evaluated_propositions, embedding_model)
+            
+            # if not os.path.exists("faiss_transcript_index"):
+            #     vectorstore_propositions.save_local("faiss_transcript_index")
+            
+            # else:
+            #     old_vectorstore_propositions = FAISS.load_local(
+            #         "faiss_transcript_index", embedding_model, allow_dangerous_deserialization=True
+            #     )
+                
+            #     old_vectorstore_propositions.merge_from(vectorstore_propositions)
+                
+            #     vectorstore_propositions.save_local("faiss_transcript_index")
+            
         
     except Exception as e:
             import ipdb, traceback, sys
