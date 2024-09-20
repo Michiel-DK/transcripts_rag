@@ -2,7 +2,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import OllamaEmbeddings
 import os
 
-class FaissVectorStore():
+class CustomFaissVectorStore():
     
     def __init__(self, ollama_embeddings: str = 'nomic-embed-text:v1.5', index_path: str = 'faiss_index'):
         
@@ -26,3 +26,8 @@ class FaissVectorStore():
             old_vectorstore_propositions.merge_from(self.vector_store)
                 
             self.vector_store.save_local(path)
+            
+    def load_index(self):
+        self.vector_store = FAISS.load_local(
+            self.index_path, self.embeddings_model, allow_dangerous_deserialization=True
+        )
