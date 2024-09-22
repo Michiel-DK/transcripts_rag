@@ -8,3 +8,4 @@ __pycache__/
 *.egg-info/*
 json_data/
 *_index/
+storage/
