@@ -227,22 +227,21 @@ if __name__ == '__main__':
             
             import ipdb;ipdb.set_trace()
             
-            # embedding_model = OllamaEmbeddings(model='nomic-embed-text:v1.5', show_progress=True)
+            embedding_model = OllamaEmbeddings(model='nomic-embed-text:v1.5', show_progress=True)
             
-
-            # vectorstore_propositions = FAISS.from_documents(prop_evaluator.evaluated_propositions, embedding_model)
+            vectorstore_propositions = FAISS.from_documents(prop_evaluator.evaluated_propositions, embedding_model)
             
-            # if not os.path.exists("faiss_transcript_index"):
-            #     vectorstore_propositions.save_local("faiss_transcript_index")
+            if not os.path.exists("faiss_transcript_index"):
+                vectorstore_propositions.save_local("faiss_transcript_index")
             
-            # else:
-            #     old_vectorstore_propositions = FAISS.load_local(
-            #         "faiss_transcript_index", embedding_model, allow_dangerous_deserialization=True
-            #     )
+            else:
+                old_vectorstore_propositions = FAISS.load_local(
+                    "faiss_transcript_index", embedding_model, allow_dangerous_deserialization=True
+                )
                 
-            #     old_vectorstore_propositions.merge_from(vectorstore_propositions)
+                old_vectorstore_propositions.merge_from(vectorstore_propositions)
                 
-            #     vectorstore_propositions.save_local("faiss_transcript_index")
+                vectorstore_propositions.save_local("faiss_transcript_index")
             
         
     except Exception as e:

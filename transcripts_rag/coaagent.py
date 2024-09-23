@@ -10,17 +10,19 @@ import os
 
 from transcripts_rag.preprocessing import TextCleaner
 
-import llama_index
+from llama_index.core import Settings
 
-class CoaAgent:
-    def __init__(self, llm, embedding):
-        self.llm = llm
-        self.embedding = embedding
+# import llama_index
+
+# class CoaAgent:
+#     def __init__(self, llm, embedding):
+#         self.llm = llm
+#         self.embedding = embedding
         
-    def setup_faiss(self, embedding_dimension:int = 512):
+#     def setup_faiss(self, embedding_dimension:int = 512):
         
-        fais_index = faiss.IndexFlatL2(embedding_dimension)
-        vector_store = FaissVectorStore(faiss_index=fais_index)
+#         fais_index = faiss.IndexFlatL2(embedding_dimension)
+#         vector_store = FaissVectorStore(faiss_index=fais_index)
         
 
 class FaissVectorStoreAgent:
@@ -31,10 +33,10 @@ class FaissVectorStoreAgent:
         self.tool_list = None
         
     def setup_faiss(self, embedding_dimension:int = 512):
-        
+                
         fais_index = faiss.IndexFlatL2(embedding_dimension)
     
-        self.vector_store = FaissVectorStore(faiss_index=fais_index)
+        self.vector_store = FaissVectorStore(faiss_index=fais_index)#, callback_manager=callback_manager)
                 
     def integestion_pipe(self):
         self.pipeline = IngestionPipeline(
@@ -94,25 +96,33 @@ if __name__ == '__main__':
     try:
         from llama_index.embeddings.ollama import OllamaEmbedding
         
+        
         embedding_model =  OllamaEmbedding(model_name="nomic-embed-text:v1.5")
         
-        fva = FaissVectorStoreAgent(embedding=embedding_model)
+        Settings.embedding_model = embedding_model
+        
+        fva = FaissVectorStoreAgent(embedding=Settings.embedding_model)
         fva.setup_faiss()
         fva.integestion_pipe()
         
-        check_ls = os.listdir('data/10k/')[-2:]
+        check_ls = os.listdir('data/')[-2:]
         
-        query_engine_tools = fva.generate_tools('data/10k/', check_ls)
+        query_engine_tools = fva.generate_tools('data/', check_ls)
                 
         from llama_index.packs.agents_coa import CoAAgentPack
 
         from langchain_groq import ChatGroq
         llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
-        pack = CoAAgentPack(tools=query_engine_tools, llm=llm)
+        
+        Settings.llm = llm
+        
+        pack = CoAAgentPack(tools=query_engine_tools, llm=Settings.llm)
         
         import nest_asyncio
         nest_asyncio.apply()
-        response = pack.run("How did lyft revenue growth compare to uber?")
+        response = pack.run("How did ABNB revenue growth compare to ARM?")
+        
+        print(response)
         
             
     except Exception as e:
