@@ -54,9 +54,11 @@ class FaissVectorStoreAgent:
         self.tool_list = []
         
         full_path_list = [base_path+path for path in path_list]
+        storage_list = [x.split('.')[0] for x in path_list]
                 
-        #name_list = [x.split('_')[-1].split('.')[0] for x in path_list]
-        name_list = [x.split('_')[0] for x in path_list]
+        name_list = [x.split('_')[-1].split('.')[0] for x in path_list]
+        print(name_list)
+        #name_list = [x.split('_')[0] for x in path_list]
                 
         for path in full_path_list:
             doc = SimpleDirectoryReader(
@@ -65,18 +67,19 @@ class FaissVectorStoreAgent:
                         
             docs_list.append(doc)
             
-        for doc, name in zip(docs_list, name_list):
+        for doc, name, path in zip(docs_list, name_list, storage_list):
+                        
             nodes = self.pipeline.run(documents=doc)
                         
             index = VectorStoreIndex(nodes= nodes, embed_model=self.embedding)
                         
-            index.storage_context.persist(persist_dir=f"storage/{name}")
+            index.storage_context.persist(persist_dir=f"storage/{path}")
             engine = index.as_query_engine(similarity_top_k=3)
                                     
             tool = QueryEngineTool(
                     query_engine=engine,
                     metadata=ToolMetadata(
-                        name=f"{name}",
+                        name=f"{path}",
                         description=(
                             f"Provides information about {name} financials. "
                             "Use a detailed plain text question as input to the tool. "
@@ -105,9 +108,9 @@ if __name__ == '__main__':
         fva.setup_faiss()
         fva.integestion_pipe()
         
-        check_ls = os.listdir('data/')[-2:]
-        
-        query_engine_tools = fva.generate_tools('data/', check_ls)
+        check_ls = os.listdir('data/subset/')
+                        
+        query_engine_tools = fva.generate_tools('data/subset/', check_ls)
                 
         from llama_index.packs.agents_coa import CoAAgentPack
 
@@ -120,7 +123,7 @@ if __name__ == '__main__':
         
         import nest_asyncio
         nest_asyncio.apply()
-        response = pack.run("How did ABNB revenue growth compare to ARM?")
+        response = pack.run("How did META revenue growth compare to GOOGL?")
         
         print(response)
         

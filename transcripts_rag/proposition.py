@@ -7,6 +7,8 @@ from tqdm import tqdm
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import OllamaEmbeddings
 
+from llama_index.llms.mistralai import MistralAI
+
 import os
 
 from transcripts_rag.ingestion import dataloader, doc_split
@@ -45,7 +47,8 @@ class PropositionGenerator():
     
     def __init__(self, model: str = "llama-3.1-70b-versatile", temperature: float = 0):
         
-        self.llm = ChatGroq(model=model, temperature=temperature)
+        self.llm = MistralAI(model="open-mistral-7b", api_key=os.getenv("MISTRAL_API_KEY"))
+        #self.llm = ChatGroq(model=model, temperature=temperature)
         self.structured_llm = self.llm.with_structured_output(GeneratePropositions)
         self.proposition_generator = None
         self.propositions = []
@@ -59,6 +62,7 @@ class PropositionGenerator():
                 "['Neil Armstrong was an astronaut.', 'Neil Armstrong walked on the Moon in 1969.', 'Neil Armstrong was the first person to walk on the Moon.', 'Neil Armstrong walked on the Moon during the Apollo 11 mission.', 'The Apollo 11 mission occurred in 1969.']"
             },
         ]
+        
 
         example_proposition_prompt = ChatPromptTemplate.from_messages(
             [
@@ -79,7 +83,8 @@ class PropositionGenerator():
             2. Be Understandable Without Context: The proposition should be self-contained, meaning it can be understood without needing additional context.
             3. Use Full Names, Not Pronouns: Avoid pronouns or ambiguous references; use full entity names.
             4. Include Relevant Dates/Qualifiers: If applicable, include necessary dates, times, and qualifiers to make the fact precise.
-            5. Contain One Subject-Predicate Relationship: Focus on a single subject and its corresponding action or attribute, without conjunctions or multiple clauses."""
+            5. Contain One Subject-Predicate Relationship: Focus on a single subject and its corresponding action or attribute, without conjunctions or multiple clauses.
+            6. Focus on metrics and financial performances."""
         
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -125,7 +130,8 @@ class PropositionGrader():
     
     def __init__(self, model: str = "llama-3.1-70b-versatile", temperature: float = 0):
         
-        self.llm = ChatGroq(model=model, temperature=temperature)
+        self.llm = MistralAI(model="open-mistral-7b", api_key=os.getenv("MISTRAL_API_KEY"))
+        #self.llm = ChatGroq(model=model, temperature=temperature)
         self.structured_llm = self.llm.with_structured_output(GradePropositions)
         self.proposition_evaluator = None
         self.treshold_dict = {"accuracy": 7, "clarity": 7, "completeness": 7, "conciseness": 7}
@@ -205,8 +211,7 @@ if __name__ == '__main__':
     try:
     
         docs = dataloader('data/')
-        
-                
+                        
         for doc in docs:
             
             doc = doc_split(doc)
@@ -219,6 +224,8 @@ if __name__ == '__main__':
             
             #get_propositions
             prop_generator.get_propositions(docs=doc)
+            
+            import ipdb;ipdb.set_trace()
                 
             prop_evaluator = PropositionGrader(model='gemma2-9b-it')
             prop_evaluator.grade_propositions()
